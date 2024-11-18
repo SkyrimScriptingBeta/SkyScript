@@ -2,4 +2,4 @@
 
 ### `SkyScript`
 
-What is making mods could be better?
+... _what if Skyrim mod scripts could be_ **better**?
