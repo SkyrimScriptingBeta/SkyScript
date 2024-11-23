@@ -1,0 +1,10 @@
+{
+    "files.exclude": {
+        "**/build/": true,
+        "**/dist/": true,
+        "**/node_modules/": true,
+        "**/compile_commands/": true,
+        "**/.xmake/": true,
+        "**/pnpm-lock.yaml": true
+    }
+}
