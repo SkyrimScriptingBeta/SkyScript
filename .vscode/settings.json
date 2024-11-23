@@ -5,6 +5,7 @@
         "**/node_modules/": true,
         "**/compile_commands/": true,
         "**/.xmake/": true,
-        "**/pnpm-lock.yaml": true
+        "**/pnpm-lock.yaml": true,
+        "**/tsconfig.tsbuildinfo": true
     }
 }
