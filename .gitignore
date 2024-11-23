@@ -3,3 +3,6 @@
 
 build
 compile_commands
+
+node_modules
+dist
