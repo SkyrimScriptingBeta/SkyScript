@@ -6,4 +6,6 @@ add_repositories("SkyrimScripting https://github.com/SkyrimScripting/Packages.gi
 
 add_requires("skyrim-commonlib")
 
-includes("experiments/*/*/xmake.lua")
+includes("xmake/*.lua")
+includes("cpp/experiments/*/*/xmake.lua")
+includes("mods/**/xmake.lua")
