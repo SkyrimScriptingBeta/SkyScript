@@ -6,6 +6,8 @@
         "**/compile_commands/": true,
         "**/.xmake/": true,
         "**/pnpm-lock.yaml": true,
-        "**/tsconfig.tsbuildinfo": true
-    }
+        "**/tsconfig.tsbuildinfo": true,
+        "**/*.pex": true
+    },
+    "cSpell.words": ["SKSE", "Skyrim", "TESV"]
 }
