@@ -3,6 +3,9 @@
 
 local node_folder = "../../../modules/node"
 
+-- https://github.com/nodejs/node/blob/main/BUILDING.md
+-- https://github.com/nodejs/node/blob/main/BUILDING.md#windows
+
 function link_to_nodejs()
     add_includedirs(
         node_folder .. "/src",
@@ -11,11 +14,14 @@ function link_to_nodejs()
         node_folder .. "/deps/simdjson"
     )
     add_links("ada", "brotli", "cares", "histogram", "icudata", "icui18n", "icutools", "icuucx", "libnode", "libuv", "llhttp", "nbytes", "ncrypto", "nghttp2", "nghttp3", "ngtcp2", "openssl", "simdjson", "simdutf", "sqlite", "torque_base", "uvwasi", "v8_abseil", "v8_base_without_compiler", "v8_compiler", "v8_init", "v8_initializers_slow", "v8_initializers", "v8_libbase", "v8_libplatform", "v8_snapshot", "v8_turboshaft", "v8_zlib", "zlib_adler32_simd", "zlib_inflate_chunk_simd", "zlib");
-    if is_mode("debug") then
-        add_linkdirs(node_folder .. "/out/Debug/lib")
-    else
-        add_linkdirs(node_folder .. "/out/Release/lib")
-    end
+    -- if is_mode("debug") then
+        -- add_linkdirs(node_folder .. "/out/Debug/lib")
+        add_linkdirs("D:/Dropbox/Coding/NodeJS_lib/Debug/lib")
+    -- else
+    --     print("RELASE MODE CURRENTLY NOT SUPPORTED")
+    --     exit(1)
+        -- add_linkdirs(node_folder .. "/out/Release/lib")
+    -- end
     if is_plat("windows") then
         add_cxflags("/Zc:__cplusplus")
         add_links("winmm", "dbghelp", "shlwapi")
@@ -26,8 +32,8 @@ end
 target("Some Keyboard Binds")
     add_files("*.cpp")
 
-    add_packages("skyrim-commonlib")
-    add_rules("@skyrim-commonlib/plugin", {
+    add_packages("skyrim-commonlib-ae")
+    add_rules("@skyrim-commonlib-ae/plugin", {
         mods_folder = os.getenv("SKYSCRIPT_MODS_FOLDER")
     })
     compile_papyrus_scripts()

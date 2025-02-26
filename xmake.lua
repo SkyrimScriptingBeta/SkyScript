@@ -1,6 +1,7 @@
 -- https://github.com/xmake-io/xmake/issues/1071
 
-add_rules("mode.debug", "mode.release")
+-- add_rules("mode.debug", "mode.release")
+add_rules("mode.debug")
 
 local vs_runtime = is_mode("debug") and "MTd" or "MT"
 
@@ -14,7 +15,7 @@ add_repositories("SkyrimScripting https://github.com/SkyrimScripting/Packages.gi
 
 add_requires("fmt", { configs = { header_only = false, vs_runtime = vs_runtime } })
 add_requires("spdlog", { configs = { header_only = false, fmt_external = true, vs_runtime = vs_runtime } })
-add_requires("skyrim-commonlib", { configs = { vs_runtime = vs_runtime } })
+add_requires("skyrim-commonlib-ae", { configs = { vs_runtime = vs_runtime } })
 
 includes("xmake/*.lua")
 includes("cpp/experiments/*/*/xmake.lua")
