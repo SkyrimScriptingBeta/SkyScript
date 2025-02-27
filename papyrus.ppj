@@ -4,8 +4,8 @@
         <Variable Name="Imports" Value="C:\Modding\PapyrusImports" />
     </Variables>
     <Imports>
-        <Import>@Imports\SkyUI</Import>
         <Import>@Imports\UIExtensions</Import>
+        <Import>@Imports\ConsoleUtil</Import>
         <Import>@Imports\SKSE</Import>
         <Import>@Imports\GameScripts</Import>
     </Imports>
