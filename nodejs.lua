@@ -25,13 +25,3 @@ function link_to_nodejs()
         add_links("user32", "userenv", "ole32", "shell32", "crypt32", "psapi")
     end
 end
-
-target("Some Keyboard Binds")
-    add_files("*.cpp")
-
-    add_packages("skyrim-commonlib-ae")
-    add_rules("@skyrim-commonlib-ae/plugin", {
-        name = "Some Keyboard Binds",
-    })
-
-    link_to_nodejs()
