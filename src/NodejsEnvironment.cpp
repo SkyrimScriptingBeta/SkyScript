@@ -116,36 +116,34 @@ namespace Nodejs {
 
             const char* proxyCode = R"(
 
-// First, bind log to globalThis (forcefully)
-globalThis.log = (...args) => {
-    if (typeof nativeLog === 'function') {
-        nativeLog('LOG:', ...args.map(arg =>
+// Bind nativeLog to globalThis before the proxy setup
+globalThis.nativeLog = (...args) => {
+    if (args.length > 0) {
+        nativeLog(...args.map(arg =>
             (typeof arg === 'object') ? JSON.stringify(arg) : String(arg)
         ));
     } else {
-        throw new Error('nativeLog is not defined');
+        nativeLog('Called nativeLog with no arguments');
     }
 };
 
-// Make it non-configurable and non-writable
-Object.defineProperty(globalThis, 'log', {
-    configurable: false,
-    enumerable: true,
-    writable: false
-});
+// Define log() globally
+globalThis.log = (...args) => {
+    globalThis.nativeLog('LOG:', ...args);
+};
 
-// Then, bind it explicitly to the shadowGlobal
-const shadowGlobal = new Proxy({}, {
+// Override in Proxy to ensure visibility
+const shadowGlobal = new Proxy(globalThis, {
     get(target, prop) {
         if (prop === 'log') {
+            // Directly return the global log function
             return globalThis.log;
         }
+
         if (prop in target) {
             return target[prop];
-        } else if (prop in globalThis) {
-            return globalThis[prop];
         } else {
-            globalThis.log(`Global lookup for: ${prop}`);
+            globalThis.nativeLog(`Global lookup for: ${prop}`);
             const value = `LazyValue(${prop})`;
             globalThis[prop] = value;
             return value;
@@ -153,10 +151,10 @@ const shadowGlobal = new Proxy({}, {
     }
 });
 
-// Confirm the binding right after setup
-log('Log is now bound to globalThis and shadowGlobal');
+// Confirm the binding
+log('log() is now bound to globalThis and shadowGlobal');
 
-)";
+            )";
 
             v8::Local<v8::String> testCode2 = v8::String::NewFromUtf8(isolate, R"(
     if (typeof log === 'function') {
