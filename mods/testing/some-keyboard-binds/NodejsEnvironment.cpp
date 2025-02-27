@@ -74,7 +74,16 @@ namespace Nodejs {
             // Expose 'require' to the global context
             v8::Local<v8::String> require_str =
                 v8::String::NewFromUtf8(isolate, "require").ToLocalChecked();
-            v8::Local<v8::Function> require_func = setup_->env()->builtin_module_require();
+            // v8::Local<v8::Function> require_func = setup_->env()->builtin_module_require();
+            v8::Local<v8::Function> require_func =
+                setup_->context()
+                    ->Global()
+                    ->Get(
+                        setup_->context(),
+                        v8::String::NewFromUtf8(isolate, "require").ToLocalChecked()
+                    )
+                    .ToLocalChecked()
+                    .As<v8::Function>();
             setup_->context()->Global()->Set(setup_->context(), require_str, require_func).Check();
 
             v8::Local<v8::Function> log_func =
