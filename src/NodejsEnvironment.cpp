@@ -3,8 +3,11 @@
 #define HAVE_INSPECTOR 1
 #define NODE_WANT_INTERNALS 1
 
-#include "env.h"
-#include "inspector_agent.h"
+// #include "env.h"
+// #include "inspector_agent.h"
+
+auto getterLambda = [](v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info
+                    ) { Nodejs::NodejsEnvironment::GlobalGetter(property, info); };
 
 namespace Nodejs {
 
@@ -12,19 +15,25 @@ namespace Nodejs {
 
     NodejsEnvironment::~NodejsEnvironment() { shutdown(); }
 
-    // // Define the log function
-    // void log_func(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    //     if (args.Length() < 1) {
-    //         return;
-    //     }
+    void NodejsEnvironment::GlobalGetter(
+        v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info
+    ) {
+        LogText("GlobalGetter called.");
 
-    //     v8::Isolate*          isolate = args.GetIsolate();
-    //     v8::String::Utf8Value str(isolate, args[0]);
-    //     RE::ConsoleLog::GetSingleton()->Print(*str);
-    // }
+        v8::Isolate*          isolate = info.GetIsolate();
+        v8::String::Utf8Value propName(isolate, property);
+        std::string           name = *propName;
+
+        // Log the name of the global property being accessed
+        LogText(fmt::format("Global lookup for: {}\n", name));
+
+        // Return 'undefined' for unknown globals
+        info.GetReturnValue().Set(v8::Undefined(isolate));
+    }
 
     void NodejsEnvironment::initialize() {
-        RE::ConsoleLog::GetSingleton()->Print("Initializing Node.js environment...\n");
+        // RE::ConsoleLog::GetSingleton()->Print("Initializing Node.js environment...\n");
+        LogText("Initializing Node.js environment...");
 
         // Setup command-line arguments (empty for simplicity).
         std::vector<std::string> args = {"node"};
@@ -34,7 +43,8 @@ namespace Nodejs {
         args.push_back("--experimental-modules");
 
         // And add the inspector for debugging too:
-        args.push_back("--inspect");
+        // args.push_back("--inspect");
+        args.push_back("--no-inspect");
 
         // Initialize the Node.js environment.
         node::InitializeOncePerProcess(
@@ -52,39 +62,28 @@ namespace Nodejs {
         setup_ = node::CommonEnvironmentSetup::Create(platform_.get(), &errors, args, exec_args);
 
         if (setup_) {
-            RE::ConsoleLog::GetSingleton()->Print("Node.js environment initialized.\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Node.js environment initialized.\n");
+            LogText("Node.js environment initialized.");
         } else {
-            RE::ConsoleLog::GetSingleton()->Print("Node.js setup error:\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Node.js setup error:\n");
+            LogText("Node.js setup error:");
             // Handle errors if the setup failed.
             for (const auto& error : errors) {
                 fprintf(stderr, "Node.js setup error: %s\n", error.c_str());
-                RE::ConsoleLog::GetSingleton()->Print(error.c_str());
+                // RE::ConsoleLog::GetSingleton()->Print(error.c_str());
+                LogText(error.c_str());
             }
             return;
         }
 
         // Enter the V8 Isolate scope.
         {
-            v8::Isolate*       isolate = setup_->isolate();
-            v8::Locker         locker(isolate);
-            v8::Isolate::Scope isolate_scope(isolate);
-            v8::HandleScope    handle_scope(isolate);
-            v8::Context::Scope context_scope(setup_->context());
-
-            // Expose 'require' to the global context
-            v8::Local<v8::String> require_str =
-                v8::String::NewFromUtf8(isolate, "require").ToLocalChecked();
-            // v8::Local<v8::Function> require_func = setup_->env()->builtin_module_require();
-            v8::Local<v8::Function> require_func =
-                setup_->context()
-                    ->Global()
-                    ->Get(
-                        setup_->context(),
-                        v8::String::NewFromUtf8(isolate, "require").ToLocalChecked()
-                    )
-                    .ToLocalChecked()
-                    .As<v8::Function>();
-            setup_->context()->Global()->Set(setup_->context(), require_str, require_func).Check();
+            v8::Isolate*           isolate = setup_->isolate();
+            v8::Locker             locker(isolate);
+            v8::Isolate::Scope     isolate_scope(isolate);
+            v8::HandleScope        handle_scope(isolate);
+            v8::Local<v8::Context> context = setup_->context();
+            v8::Context::Scope     context_scope(context);
 
             v8::Local<v8::Function> log_func =
                 v8::Function::New(
@@ -92,7 +91,8 @@ namespace Nodejs {
                     [](const v8::FunctionCallbackInfo<v8::Value>& info) {
                         for (int i = 0; i < info.Length(); ++i) {
                             v8::String::Utf8Value str(info.GetIsolate(), info[i]);
-                            RE::ConsoleLog::GetSingleton()->Print(*str);
+                            // RE::ConsoleLog::GetSingleton()->Print(*str);
+                            LogText(*str);
                         }
                     }
                 ).ToLocalChecked();
@@ -100,26 +100,107 @@ namespace Nodejs {
             setup_->context()
                 ->Global()
                 ->Set(
-                    setup_->context(), v8::String::NewFromUtf8(isolate, "log").ToLocalChecked(),
-                    log_func
+                    setup_->context(),
+                    v8::String::NewFromUtf8(isolate, "nativeLog").ToLocalChecked(), log_func
                 )
                 .Check();
 
-            // if (setup_->env()->inspector_agent()->IsActive()) {
-            //     RE::ConsoleLog::GetSingleton()->Print("Inspector is active.\n");
-            // } else {
-            //     RE::ConsoleLog::GetSingleton()->Print("Inspector is not active.\n");
-            // }
+            v8::Local<v8::String> testCode = v8::String::NewFromUtf8(isolate, R"(
+    nativeLog('Native log test:', 123, { foo: 'bar' });
+)")
+                                                 .ToLocalChecked();
 
-            // if (setup_->env()->inspector_agent()->IsListening()) {
-            //     RE::ConsoleLog::GetSingleton()->Print("Inspector is listening.\n");
-            // } else {
-            //     RE::ConsoleLog::GetSingleton()->Print("Inspector is not listening.\n");
-            // }
+            v8::Local<v8::Script> testScript =
+                v8::Script::Compile(context, testCode).ToLocalChecked();
+            testScript->Run(context).ToLocalChecked();
+
+            const char* proxyCode = R"(
+
+// First, bind log to globalThis (forcefully)
+globalThis.log = (...args) => {
+    if (typeof nativeLog === 'function') {
+        nativeLog('LOG:', ...args.map(arg =>
+            (typeof arg === 'object') ? JSON.stringify(arg) : String(arg)
+        ));
+    } else {
+        throw new Error('nativeLog is not defined');
+    }
+};
+
+// Make it non-configurable and non-writable
+Object.defineProperty(globalThis, 'log', {
+    configurable: false,
+    enumerable: true,
+    writable: false
+});
+
+// Then, bind it explicitly to the shadowGlobal
+const shadowGlobal = new Proxy({}, {
+    get(target, prop) {
+        if (prop === 'log') {
+            return globalThis.log;
+        }
+        if (prop in target) {
+            return target[prop];
+        } else if (prop in globalThis) {
+            return globalThis[prop];
+        } else {
+            globalThis.log(`Global lookup for: ${prop}`);
+            const value = `LazyValue(${prop})`;
+            globalThis[prop] = value;
+            return value;
+        }
+    }
+});
+
+// Confirm the binding right after setup
+log('Log is now bound to globalThis and shadowGlobal');
+
+)";
+
+            v8::Local<v8::String> testCode2 = v8::String::NewFromUtf8(isolate, R"(
+    if (typeof log === 'function') {
+        nativeLog('log() is defined and is a function');
+    } else {
+        nativeLog('log() is NOT defined');
+    }
+)")
+                                                  .ToLocalChecked();
+
+            v8::Local<v8::Script> testScript2 =
+                v8::Script::Compile(context, testCode2).ToLocalChecked();
+            testScript2->Run(context).ToLocalChecked();
+
+            // Compile and run the proxy code
+            v8::Local<v8::String> source =
+                v8::String::NewFromUtf8(isolate, proxyCode).ToLocalChecked();
+            v8::Local<v8::Script> script = v8::Script::Compile(context, source).ToLocalChecked();
+            script->Run(context).ToLocalChecked();
+
+            LogText("Shadow global attached.");
+
+            // // Expose 'require' to the global context
+            // v8::Local<v8::String> require_str =
+            //     v8::String::NewFromUtf8(isolate, "require").ToLocalChecked();
+
+            // // v8::Local<v8::Function> require_func = setup_->env()->builtin_module_require();
+            // v8::Local<v8::Function> require_func =
+            //     setup_->context()
+            //         ->Global()
+            //         ->Get(
+            //             setup_->context(),
+            //             v8::String::NewFromUtf8(isolate, "require").ToLocalChecked()
+            //         )
+            //         .ToLocalChecked()
+            //         .As<v8::Function>();
+            // setup_->context()->Global()->Set(setup_->context(), require_str,
+            // require_func).Check();
         }
     }
 
     void NodejsEnvironment::shutdown() {
+        LogText("Shutting down Node.js environment...");
+
         // Dispose the Node.js environment.
         if (setup_) {
             node::Stop(setup_->env());
@@ -156,7 +237,8 @@ namespace Nodejs {
     }
 
     v8::MaybeLocal<v8::Value> NodejsEnvironment::eval(std::string_view code) {
-        RE::ConsoleLog::GetSingleton()->Print("Evaluating JavaScript code...\n");
+        // RE::ConsoleLog::GetSingleton()->Print("Evaluating JavaScript code...\n");
+        LogText("Evaluating JavaScript code...");
 
         v8::Isolate*       isolate = setup_->isolate();
         v8::Locker         locker(isolate);
@@ -165,8 +247,13 @@ namespace Nodejs {
         v8::Context::Scope context_scope(setup_->context());
 
         // Wrap the code in a function to simulate the Node.js module wrapper
-        std::string wrapped_code = "(function(exports, require, module, __filename, __dirname) { " +
-                                   std::string(code) + "\n})";
+        std::string outer_wrapped_code =
+            "(function(exports, require, module, __filename, __dirname) { " + std::string(code) +
+            "\n})";
+
+        // Wrap the code in a function that uses the shadow global
+        std::string wrapped_code =
+            "(function() { with (shadowGlobal) { " + std::string(outer_wrapped_code) + " } })()";
 
         // Convert the wrapped code to a V8 string
         v8::Local<v8::String> source;
@@ -179,22 +266,27 @@ namespace Nodejs {
         // Compile the script
         v8::Local<v8::Script> script;
         if (!v8::Script::Compile(setup_->context(), source).ToLocal(&script)) {
-            RE::ConsoleLog::GetSingleton()->Print("Compilation failed.\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Compilation failed.\n");
+            LogText("Compilation failed.");
             // Compilation failed.
             return v8::MaybeLocal<v8::Value>();
         } else {
-            RE::ConsoleLog::GetSingleton()->Print("Compilation succeeded.\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Compilation succeeded.\n");
+            LogText("Compilation succeeded.");
         }
 
         // Run the script to get the function
         v8::Local<v8::Value> func_val;
-        RE::ConsoleLog::GetSingleton()->Print(fmt::format("Running script: {}\n", code).c_str());
+        // RE::ConsoleLog::GetSingleton()->Print(fmt::format("Running script: {}\n", code).c_str());
+        LogText(fmt::format("CHANGED 2 Running script: {}\n", code).c_str());
         if (!script->Run(setup_->context()).ToLocal(&func_val)) {
             // Running the script failed.
-            RE::ConsoleLog::GetSingleton()->Print("Running script failed.\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Running script failed.\n");
+            LogText("Running script failed.");
             return v8::MaybeLocal<v8::Value>();
         } else {
-            RE::ConsoleLog::GetSingleton()->Print("Running script succeeded.\n");
+            // RE::ConsoleLog::GetSingleton()->Print("Running script succeeded.\n");
+            LogText("Running script succeeded.");
         }
 
         // Check if the result is a function

@@ -1,7 +1,10 @@
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
+#include <_Log_.h>
 
 #include "NodejsEnvironment.h"
+
+_LogToFile_("D:/Temp/SkyScriptLog.log");
 
 std::unique_ptr<Nodejs::NodejsEnvironment> nodejs_environment = nullptr;
 

@@ -1,12 +1,17 @@
 #pragma once
 
 #include <RE/Skyrim.h>
+#include <_Log_.h>
 
 #include <memory>
 #include <string_view>
 
 #include "node.h"
 
+inline void LogText(std::string_view text) {
+    _Log_(text.data());
+    RE::ConsoleLog::GetSingleton()->Print(text.data());
+}
 
 namespace Nodejs {
 
@@ -26,6 +31,10 @@ namespace Nodejs {
     // Class representing an active Node.js environment.
     class NodejsEnvironment {
     public:
+        static void GlobalGetter(
+            v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info
+        );
+
         // Constructs and initializes the Node.js environment.
         NodejsEnvironment();
 

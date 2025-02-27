@@ -6,6 +6,7 @@
     <Imports>
         <Import>@Imports\UIExtensions</Import>
         <Import>@Imports\ConsoleUtil</Import>
+        <Import>@Imports\PapyrusUtil</Import>
         <Import>@Imports\SKSE</Import>
         <Import>@Imports\GameScripts</Import>
     </Imports>
