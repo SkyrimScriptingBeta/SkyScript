@@ -1,7 +1,7 @@
 -- https://github.com/nodejs/node/issues/27189
 -- https://github.com/nodejs/node/issues/28218
 
-local node_folder = "../../../modules/node"
+local node_folder = "modules/node"
 
 -- https://github.com/nodejs/node/blob/main/BUILDING.md
 -- https://github.com/nodejs/node/blob/main/BUILDING.md#windows

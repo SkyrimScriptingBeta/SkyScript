@@ -31,9 +31,10 @@ for _, game_version in ipairs(skyrim_versions) do
 end
 
 for _, game_version in ipairs(skyrim_versions) do
-    target("SKSE Plugin - " .. game_version:upper())
+    target("SKSE_" .. game_version:upper())
         set_basename(mod_info.name .. "-" .. game_version:upper())
-        add_files("*.cpp")
+        add_files("src/*.cpp")
+        add_includedirs("include")
         add_packages("skyrim-commonlib-" .. game_version)
         add_rules("@skyrim-commonlib-" .. game_version .. "/plugin", {
             mod_name = mod_info.name .. " (" .. game_version:upper() .. ")",

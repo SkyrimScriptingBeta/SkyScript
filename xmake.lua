@@ -8,5 +8,5 @@ mod_info = {
 
 skyrim_versions = {"ae"}
 
-includes("papyrus.lua")
 includes("skse.lua")
+includes("papyrus.lua")

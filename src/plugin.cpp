@@ -1,5 +1,3 @@
-#pragma once
-
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
 
@@ -33,6 +31,9 @@ inline void EvalJs(
         RE::ConsoleLog::GetSingleton()->Print("Node.js environment not created.");
         return;
     }
+
+    RE::ConsoleLog::GetSingleton()->Print("Evaluating JavaScript code...");
+    RE::ConsoleLog::GetSingleton()->Print(a_code.data());
 
     auto result = nodejs_environment->eval(a_code);
 
