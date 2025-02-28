@@ -32,6 +32,7 @@ namespace Nodejs {
     }
 
     void NodejsEnvironment::initialize() {
+        // RE::ConsoleLog::GetSingleton()->Print("Initializing Node.js environment...\n");
         LogText("Initializing Node.js environment...");
 
         // Setup command-line arguments (empty for simplicity).
@@ -61,12 +62,15 @@ namespace Nodejs {
         setup_ = node::CommonEnvironmentSetup::Create(platform_.get(), &errors, args, exec_args);
 
         if (setup_) {
+            // RE::ConsoleLog::GetSingleton()->Print("Node.js environment initialized.\n");
             LogText("Node.js environment initialized.");
         } else {
+            // RE::ConsoleLog::GetSingleton()->Print("Node.js setup error:\n");
             LogText("Node.js setup error:");
             // Handle errors if the setup failed.
             for (const auto& error : errors) {
                 fprintf(stderr, "Node.js setup error: %s\n", error.c_str());
+                // RE::ConsoleLog::GetSingleton()->Print(error.c_str());
                 LogText(error.c_str());
             }
             return;
@@ -87,6 +91,7 @@ namespace Nodejs {
                     [](const v8::FunctionCallbackInfo<v8::Value>& info) {
                         for (int i = 0; i < info.Length(); ++i) {
                             v8::String::Utf8Value str(info.GetIsolate(), info[i]);
+                            // RE::ConsoleLog::GetSingleton()->Print(*str);
                             LogText(*str);
                         }
                     }
@@ -100,36 +105,69 @@ namespace Nodejs {
                 )
                 .Check();
 
+            v8::Local<v8::String> testCode = v8::String::NewFromUtf8(isolate, R"(
+    nativeLog('Native log test:', 123, { foo: 'bar' });
+)")
+                                                 .ToLocalChecked();
+
+            v8::Local<v8::Script> testScript =
+                v8::Script::Compile(context, testCode).ToLocalChecked();
+            testScript->Run(context).ToLocalChecked();
+
             const char* proxyCode = R"(
-    // Add log directly to the shadowGlobal target object
-    const shadowGlobal = new Proxy({
-        // Add log directly to the proxy target object
-        log: function(...args) {
-            // Call the native log function
-            if (typeof nativeLog === 'function') {
-                nativeLog(...args);
-            } else {
-                console.error('nativeLog is not defined');
-            }
+
+// Bind nativeLog to globalThis before the proxy setup
+globalThis.nativeLog = (...args) => {
+    if (args.length > 0) {
+        nativeLog(...args.map(arg =>
+            (typeof arg === 'object') ? JSON.stringify(arg) : String(arg)
+        ));
+    } else {
+        nativeLog('Called nativeLog with no arguments');
+    }
+};
+
+// Define log() globally
+globalThis.log = (...args) => {
+    globalThis.nativeLog('LOG:', ...args);
+};
+
+// Override in Proxy to ensure visibility
+const shadowGlobal = new Proxy(globalThis, {
+    get(target, prop) {
+        if (prop === 'log') {
+            // Directly return the global log function
+            return globalThis.log;
         }
-    }, {
-        get(target, prop) {
-            if (prop in target) {
-                return target[prop];
-            } else if (prop in globalThis) {
-                return globalThis[prop];
-            } else {
-                // Use the nativeLog directly here to avoid circular reference
-                if (typeof nativeLog === 'function') {
-                    nativeLog(`Global lookup for: ${prop}`);
-                }
-                const value = `LazyValue(${prop})`;
-                globalThis[prop] = value;
-                return value;
-            }
+
+        if (prop in target) {
+            return target[prop];
+        } else {
+            globalThis.nativeLog(`Global lookup for: ${prop}`);
+            const value = `LazyValue(${prop})`;
+            globalThis[prop] = value;
+            return value;
         }
-    });
-)";
+    }
+});
+
+// Confirm the binding
+log('log() is now bound to globalThis and shadowGlobal');
+
+            )";
+
+            v8::Local<v8::String> testCode2 = v8::String::NewFromUtf8(isolate, R"(
+    if (typeof log === 'function') {
+        nativeLog('log() is defined and is a function');
+    } else {
+        nativeLog('log() is NOT defined');
+    }
+)")
+                                                  .ToLocalChecked();
+
+            v8::Local<v8::Script> testScript2 =
+                v8::Script::Compile(context, testCode2).ToLocalChecked();
+            testScript2->Run(context).ToLocalChecked();
 
             // Compile and run the proxy code
             v8::Local<v8::String> source =
@@ -197,6 +235,7 @@ namespace Nodejs {
     }
 
     v8::MaybeLocal<v8::Value> NodejsEnvironment::eval(std::string_view code) {
+        // RE::ConsoleLog::GetSingleton()->Print("Evaluating JavaScript code...\n");
         LogText("Evaluating JavaScript code...");
 
         v8::Isolate*       isolate = setup_->isolate();
@@ -225,21 +264,26 @@ namespace Nodejs {
         // Compile the script
         v8::Local<v8::Script> script;
         if (!v8::Script::Compile(setup_->context(), source).ToLocal(&script)) {
+            // RE::ConsoleLog::GetSingleton()->Print("Compilation failed.\n");
             LogText("Compilation failed.");
             // Compilation failed.
             return v8::MaybeLocal<v8::Value>();
         } else {
+            // RE::ConsoleLog::GetSingleton()->Print("Compilation succeeded.\n");
             LogText("Compilation succeeded.");
         }
 
         // Run the script to get the function
         v8::Local<v8::Value> func_val;
+        // RE::ConsoleLog::GetSingleton()->Print(fmt::format("Running script: {}\n", code).c_str());
         LogText(fmt::format("CHANGED 2 Running script: {}\n", code).c_str());
         if (!script->Run(setup_->context()).ToLocal(&func_val)) {
             // Running the script failed.
+            // RE::ConsoleLog::GetSingleton()->Print("Running script failed.\n");
             LogText("Running script failed.");
             return v8::MaybeLocal<v8::Value>();
         } else {
+            // RE::ConsoleLog::GetSingleton()->Print("Running script succeeded.\n");
             LogText("Running script succeeded.");
         }
 
