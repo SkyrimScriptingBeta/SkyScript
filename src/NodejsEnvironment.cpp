@@ -116,34 +116,36 @@ namespace Nodejs {
 
             const char* proxyCode = R"(
 
-// Bind nativeLog to globalThis before the proxy setup
-globalThis.nativeLog = (...args) => {
-    if (args.length > 0) {
-        nativeLog(...args.map(arg =>
+// First, bind log to globalThis (forcefully)
+globalThis.log = (...args) => {
+    if (typeof nativeLog === 'function') {
+        nativeLog('LOG:', ...args.map(arg =>
             (typeof arg === 'object') ? JSON.stringify(arg) : String(arg)
         ));
     } else {
-        nativeLog('Called nativeLog with no arguments');
+        throw new Error('nativeLog is not defined');
     }
 };
 
-// Define log() globally
-globalThis.log = (...args) => {
-    globalThis.nativeLog('LOG:', ...args);
-};
+// Make it non-configurable and non-writable
+Object.defineProperty(globalThis, 'log', {
+    configurable: false,
+    enumerable: true,
+    writable: false
+});
 
-// Override in Proxy to ensure visibility
-const shadowGlobal = new Proxy(globalThis, {
+// Then, bind it explicitly to the shadowGlobal
+const shadowGlobal = new Proxy({}, {
     get(target, prop) {
         if (prop === 'log') {
-            // Directly return the global log function
             return globalThis.log;
         }
-
         if (prop in target) {
             return target[prop];
+        } else if (prop in globalThis) {
+            return globalThis[prop];
         } else {
-            globalThis.nativeLog(`Global lookup for: ${prop}`);
+            globalThis.log(`Global lookup for: ${prop}`);
             const value = `LazyValue(${prop})`;
             globalThis[prop] = value;
             return value;
@@ -151,10 +153,10 @@ const shadowGlobal = new Proxy(globalThis, {
     }
 });
 
-// Confirm the binding
-log('log() is now bound to globalThis and shadowGlobal');
+// Confirm the binding right after setup
+log('Log is now bound to globalThis and shadowGlobal');
 
-            )";
+)";
 
             v8::Local<v8::String> testCode2 = v8::String::NewFromUtf8(isolate, R"(
     if (typeof log === 'function') {
