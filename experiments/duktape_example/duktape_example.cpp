@@ -155,42 +155,31 @@ void setup_js_env(duk_context* ctx) {
     duk_put_prop_string(ctx, -2, "console");
     duk_pop(ctx);
 
-    // Inject JavaScript code to override global object with a Proxy
+    // Inject JavaScript code to override global object with proper interception
     const char* proxy_setup_code = R"(
         (function() {
             var nativeGlobalLookup = function(name) {
                 return __lookup_global_from_cpp(name);
             };
 
-            // We need to be more careful with the global object in Duktape
-            // Instead of trying to modify existing properties, we'll intercept lookups
-            // using our own function
+            // Store the original global object getter and setter
+            var global = this;
+            var originalGet = Object.getOwnPropertyDescriptor(global.__proto__, "toString").value;
 
-            // Store the original global object's getter
-            var originalGetProp = Object.getOwnPropertyDescriptor(Object.prototype, '__lookupGetter__').value;
-            var originalGetDesc = Object.getOwnPropertyDescriptor;
+            // Duktape doesn't fully support Proxy, so we need to use a different approach
+            // We'll create a special getter function that's called for global variable access
+            function createGlobalGetter() {
+                return function(prop) {
+                    if (!(prop in global) && typeof prop === 'string') {
+                        // Lazily define the global via our C++ function
+                        global[prop] = nativeGlobalLookup(prop);
+                    }
+                    return global[prop];
+                };
+            }
 
-            // Add our lookup function to the global object
-            this.lookupGlobal = function(prop) {
-                if (!(prop in this)) {
-                    return nativeGlobalLookup(prop);
-                }
-                return this[prop];
-            };
-
-            // Define a few helper methods to work with our global interception
-            this.hasGlobal = function(prop) {
-                return prop in this || typeof nativeGlobalLookup(prop) !== 'undefined';
-            };
-
-            // Trying to use a proper Proxy isn't reliable in Duktape, so we'll use this approach instead
-            this.__getGlobalVar = function(name) {
-                if (!(name in this)) {
-                    // Lazily define the global via our C++ function
-                    return nativeGlobalLookup(name);
-                }
-                return this[name];
-            };
+            // Register our custom getter
+            global.__getGlobal = createGlobalGetter();
 
             console.log("Global environment setup complete");
         })();
@@ -202,32 +191,55 @@ void setup_js_env(duk_context* ctx) {
     }
     duk_pop(ctx);  // pop result
 
-    // Now modify our error wrapper to use the new approach
-    const char* error_wrapper_setup = R"(
+    // Modify our evaluation wrapper to handle global variables
+    const char* eval_wrapper_code = R"(
         (function() {
-            // We'll save the original eval
+            // Override the default eval with our custom implementation
             var originalEval = eval;
 
-            // Redefine global eval to catch ReferenceErrors
+            // Create a wrapper that preprocesses the code to handle global variables
             this.eval = function(code) {
                 try {
                     return originalEval(code);
                 } catch (e) {
-                    if (e instanceof ReferenceError && e.message.indexOf('not defined') !== -1) {
-                        var varName = e.message.split(' ')[0];
-                        // Try to load the variable using our C++ function
-                        this[varName] = __lookup_global_from_cpp(varName);
-                        // Try again
-                        return originalEval(code);
+                    if (e instanceof ReferenceError && e.message.indexOf('undefined') !== -1) {
+                        // Extract the variable name from the error message
+                        var varMatch = /identifier ['"]([^'"]+)['"]/.exec(e.message);
+                        if (varMatch && varMatch[1]) {
+                            var varName = varMatch[1];
+                            console.log("Attempting to auto-define global: " + varName);
+
+                            // Define the variable globally
+                            this[varName] = __lookup_global_from_cpp(varName);
+
+                            // Try the eval again
+                            return originalEval(code);
+                        }
                     }
-                    throw e;
+                    throw e;  // Re-throw if we couldn't handle it
                 }
+            };
+
+            // Special helper for direct variable references (for REPL convenience)
+            this.__processREPLInput = function(code) {
+                // Simple check if the input is just a variable name
+                if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(code.trim())) {
+                    var varName = code.trim();
+                    if (!(varName in this)) {
+                        // Define the variable before we try to use it
+                        this[varName] = __lookup_global_from_cpp(varName);
+                    }
+                    return this[varName];
+                }
+
+                // Otherwise, regular eval
+                return eval(code);
             };
         })();
     )";
 
-    if (duk_peval_string(ctx, error_wrapper_setup) != 0) {
-        std::cerr << "Failed to setup error wrapper" << std::endl;
+    if (duk_peval_string(ctx, eval_wrapper_code) != 0) {
+        std::cerr << "Failed to setup eval wrapper" << std::endl;
         print_error(ctx);
     }
     duk_pop(ctx);  // pop result
@@ -272,18 +284,19 @@ int main() {
                 if (!input_buffer.empty()) {
                     cout << "Executing:" << endl;
 
-                    // No need for complex wrapping since we've modified the global eval
-                    // Just evaluate directly
-                    if (duk_peval_string(ctx, input_buffer.c_str()) != 0) {
-                        // Handle error
+                    // Use our special REPL processing function
+                    duk_push_global_object(ctx);
+                    duk_get_prop_string(ctx, -1, "__processREPLInput");
+                    duk_push_string(ctx, input_buffer.c_str());
+
+                    if (duk_pcall(ctx, 1) != 0) {
                         print_error(ctx);
                     } else if (!duk_is_undefined(ctx, -1)) {
                         // Print the result
                         cout << "=> " << duk_safe_to_string(ctx, -1) << endl;
                     }
 
-                    // Pop the result
-                    duk_pop(ctx);
+                    duk_pop_2(ctx);  // pop result and global object
 
                     // Reset input buffer after execution
                     input_buffer.clear();
