@@ -1,12 +1,9 @@
 -- https://github.com/nodejs/node/issues/27189
 -- https://github.com/nodejs/node/issues/28218
-
-local node_folder = "modules/node"
-
 -- https://github.com/nodejs/node/blob/main/BUILDING.md
 -- https://github.com/nodejs/node/blob/main/BUILDING.md#windows
 
-function link_to_nodejs()
+function link_to_nodejs(node_folder)
     add_includedirs(
         node_folder .. "/src",
         node_folder .. "/deps/uv/include",
