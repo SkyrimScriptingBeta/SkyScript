@@ -2,15 +2,15 @@
 
 includes("nodejs.lua")
 
-add_rules("mode.debug", "mode.release")
+-- add_rules("mode.debug", "mode.release")
 
-local vs_runtime = is_mode("debug") and "MTd" or "MT"
-set_runtimes(vs_runtime)
+-- local vs_runtime = is_mode("debug") and "MTd" or "MT"
+-- set_runtimes(vs_runtime)
 
-add_repositories("SkyrimScripting https://github.com/SkyrimScripting/Packages.git")
-add_repositories("MrowrLib https://github.com/MrowrLib/Packages.git")
+-- add_repositories("SkyrimScripting https://github.com/SkyrimScripting/Packages.git")
+-- add_repositories("MrowrLib https://github.com/MrowrLib/Packages.git")
 
-set_languages("c++23")
+-- set_languages("c++23")
 
 -- This is expected:
 --     warning: add_requires(fmt): vs_runtime is deprecated, please use runtimes!
