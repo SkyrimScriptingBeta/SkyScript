@@ -19,6 +19,7 @@ mod_info = {
 
 skyrim_versions = {"ae"}
 
-includes("experiments/**/xmake.lua")
+includes("experiments/duktape_example/xmake.lua")
+-- includes("experiments/**/xmake.lua")
 includes("skse.lua")
 includes("papyrus.lua")
