@@ -15,6 +15,8 @@
 using namespace std;
 using namespace v8;
 
+std::unique_ptr<node::MultiIsolatePlatform> platform_;
+
 // Store dynamically created globals
 unordered_map<string, Global<Value>> global_vars;
 
@@ -210,8 +212,17 @@ int main() {
     std::vector<std::string> exec_args;
     std::vector<std::string> errors;
 
+    node::InitializeOncePerProcess(
+        args, {node::ProcessInitializationFlags::kNoInitializeV8,
+               node::ProcessInitializationFlags::kNoInitializeNodeV8Platform}
+    );
+
+    platform_ = node::MultiIsolatePlatform::Create(4);
+    v8::V8::InitializePlatform(platform_.get());
+    v8::V8::Initialize();
+
     // We're leveraging Node.js's built-in setup utility to avoid manually configuring everything
-    setup = node::CommonEnvironmentSetup::Create(nullptr, &errors, args, exec_args);
+    setup = node::CommonEnvironmentSetup::Create(platform_.get(), &errors, args, exec_args);
 
     if (!setup) {
         for (const auto& error : errors) {
@@ -220,14 +231,14 @@ int main() {
         return 1;
     }
 
-    // Now setup is already properly initialized with isolate, context, etc.
-    Isolate*       isolate = setup->isolate();
-    Local<Context> context = setup->context();
+    Isolate* isolate = setup->isolate();
 
     {
-        Isolate::Scope isolate_scope(isolate);
-        HandleScope    handle_scope(isolate);
-        Context::Scope context_scope(context);
+        v8::Locker             locker(isolate);
+        v8::Isolate::Scope     isolate_scope(isolate);
+        v8::HandleScope        handle_scope(isolate);
+        v8::Local<v8::Context> context = v8::Context::New(isolate);
+        Context::Scope         context_scope(context);
 
         // Setup our custom JavaScript environment
         setup_js_env(context);

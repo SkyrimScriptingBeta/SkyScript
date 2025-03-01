@@ -1,11 +1,11 @@
 {
   "cSpell.words": ["SKSE", "Skyrim", "TESV"],
   "files.exclude": {
-    "./modules": true,
+    "**/modules/node/**": true,
     "**/node_modules": true
   },
   "search.exclude": {
-    "./modules": true,
+    "**/modules/node/**": true,
     "**/node_modules": true
   }
 }
