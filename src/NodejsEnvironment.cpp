@@ -1,5 +1,7 @@
 #include "NodejsEnvironment.h"
 
+#include "MyNamedPropertyGetter.h"
+
 #define HAVE_INSPECTOR 1
 #define NODE_WANT_INTERNALS 1
 
@@ -10,95 +12,24 @@ namespace Nodejs {
 
     using namespace v8;
 
-    // We'll define a function callback to return for missing properties:
-    void MyInterceptedFunction(const FunctionCallbackInfo<Value>& args) {
-        Isolate* isolate = args.GetIsolate();
-
-        // We'll just print out that this function was invoked
-        LogText("[C++] Intercepted function called!");
-
-        // Optionally, return something to JavaScript
-        args.GetReturnValue().Set(
-            String::NewFromUtf8(isolate, "Intercepted result").ToLocalChecked()
-        );
-    }
-
-    void MyNamedPropertyGetter(
+    static void MyNamedPropertyGetterCallback(
         v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info
     ) {
-        LogText("[C++] Intercepting named property access...");
-        v8::Isolate*    isolate = info.GetIsolate();
-        v8::HandleScope handle_scope(isolate);
-
-        v8::Local<v8::Context> context = isolate->GetCurrentContext();
-
-        // Convert property name to a string for debugging
-        v8::String::Utf8Value utf8(isolate, property);
-        std::string           propName = *utf8 ? *utf8 : "<unknown>";
-        LogText(fmt::format("[C++] Intercepted property access: '{}'", propName).c_str());
-
-        // Get the object being accessed
-        v8::Local<v8::Object> holder = info.This();
-
-        // 1) Check if a real (non-interceptor) property already exists
-        bool hasReal = false;
-        if (!holder->HasRealNamedProperty(context, property).To(&hasReal)) {
-            // If To() fails, something else is off, just return
-            return;
-        }
-
-        if (propName == "nativeLog" || propName == "globalThis" || propName == "console" ||
-            propName == "sandbox" || propName == "Proxy" || propName == "myProxy") {
-            // Immediately get the real property or do nothing
-            // so we don't override or cause recursion
-            v8::MaybeLocal<v8::Value> realVal = holder->GetRealNamedProperty(context, property);
-            if (!realVal.IsEmpty()) {
-                info.GetReturnValue().Set(realVal.ToLocalChecked());
-            }
-            return;
-        }
-
-        //         bool hasReal = holder->HasRealNamedProperty(context, property).FromMaybe(false);
-        // if (hasReal) {
-        //   // ...
-        // }
-
-        if (hasReal) {
-            // 2a) If it *does* exist, return that real property so we don't override it
-            v8::MaybeLocal<v8::Value> realVal = holder->GetRealNamedProperty(context, property);
-            if (!realVal.IsEmpty()) {
-                info.GetReturnValue().Set(realVal.ToLocalChecked());
-            }
-            LogText("[C++] Real property found, returning it.");
-            return;
-        }
-
-        // 2b) It's truly missing => define or return your "dummy" property
-        // Example: create a function
-        v8::Local<v8::FunctionTemplate> funcTemplate =
-            v8::FunctionTemplate::New(isolate, MyInterceptedFunction);
-        v8::Local<v8::Function> func = funcTemplate->GetFunction(context).ToLocalChecked();
-
-        info.GetReturnValue().Set(func);
-    }
-
-    auto getterLambda = [](v8::Local<v8::Name>                        property,
-                           const v8::PropertyCallbackInfo<v8::Value>& info) {
         MyNamedPropertyGetter(property, info);
-    };
+    }
 
     Local<ObjectTemplate> CreateSandboxTemplate(Isolate* isolate) {
         Local<ObjectTemplate> global_templ = ObjectTemplate::New(isolate);
 
+        // Create the config with proper constructor parameters - pass the callback directly
         v8::NamedPropertyHandlerConfiguration config(
-            reinterpret_cast<v8::NamedPropertyGetterCallback>(+getterLambda
-            ),                               // Use reinterpret_cast
-            nullptr,                         // Setter
-            nullptr,                         // Query
-            nullptr,                         // Deleter
-            nullptr,                         // Enumerator
-            v8::Local<v8::Value>(),          // Data
-            v8::PropertyHandlerFlags::kNone  // Flags
+            reinterpret_cast<v8::NamedPropertyGetterCallback>(MyNamedPropertyGetterCallback),
+            nullptr,                         // setter
+            nullptr,                         // query
+            nullptr,                         // deleter
+            nullptr,                         // enumerator
+            v8::Local<v8::Value>(),          // data
+            v8::PropertyHandlerFlags::kNone  // flags
         );
 
         // Attach the interceptor to the global object template:
