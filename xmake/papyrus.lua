@@ -10,7 +10,3 @@ function compile_papyrus_scripts()
         os.exec("pyro -i " .. ppj_path .. " --game-path \"" .. skyrim_with_ck .. "\"")
     end)
 end
-
-target("Build Papyrus Scripts")
-    set_kind("phony")
-    compile_papyrus_scripts()
