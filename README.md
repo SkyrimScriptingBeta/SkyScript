@@ -1,10 +1,5 @@
-# Papyrus & SKSE
+<img src="resources/images/CandyPurr.png" width="150" align="right" />
 
-[**DRAFT**] _My current template for Papyrus and SKSE hacking_
+### `SkyScript`
 
-> Uses [`xmake`][] as build system.  
-> Also requires [`pyro`][] (should be installed in `PATH`).  
-
-
-[`xmake`]: https://xmake.io
-[`pyro`]: https://wiki.fireundubh.com/pyro
+... _what if Skyrim mod scripts could be_ **better**?
