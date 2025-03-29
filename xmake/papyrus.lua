@@ -6,7 +6,11 @@ function compile_papyrus_scripts()
             print("SKYRIM_WITH_CK environment variable not set")
             return
         end
-        local ppj_path = path.join(target:scriptdir(), "papyrus.ppj")
+        local ppj_path = path.join(target:scriptdir(), "..", "papyrus.ppj")
         os.exec("pyro -i " .. ppj_path .. " --game-path \"" .. skyrim_with_ck .. "\"")
     end)
 end
+
+target("Build Papyrus Scripts")
+    set_kind("phony")
+    compile_papyrus_scripts()
