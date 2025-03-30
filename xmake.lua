@@ -16,6 +16,11 @@ add_repositories("MrowrLib            https://github.com/MrowrLib/Packages.git")
 
 includes("xmake/*.lua")
 
+-- add_requires("luajit")
+-- add_requires("sol2", { configs = { includes_lua = false }})
+
+add_requires("quickjs-ng")
+
 add_requires(get_config("commonlib"))
 add_requires("SkyrimScripting.Plugin", { configs = { commonlib = get_config("commonlib") }})
 
