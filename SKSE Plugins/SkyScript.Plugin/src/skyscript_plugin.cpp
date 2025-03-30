@@ -1,3 +1,4 @@
+#include <SkyrimScripting/Console.h>
 #include <SkyrimScripting/Plugin.h>
 
 std::string GetVersion(RE::StaticFunctionTag*) { return "1.0.0"; }

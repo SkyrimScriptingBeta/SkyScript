@@ -23,5 +23,8 @@ add_requires("quickjs-ng")
 
 add_requires(get_config("commonlib"))
 add_requires("SkyrimScripting.Plugin", { configs = { commonlib = get_config("commonlib") }})
+add_requires("SkyrimScripting.Console", { configs = { commonlib = get_config("commonlib") }})
+add_requires("SkyrimScripting.Services", { configs = { commonlib = get_config("commonlib") }})
 
+includes("Libraries/*/xmake.lua")
 includes("SKSE Plugins/*/xmake.lua")
